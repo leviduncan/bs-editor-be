@@ -1,0 +1,11 @@
+@import "_variables.scss";
+@import "../../node_modules/bootstrap/scss/bootstrap.scss";
+
+
+#livePreview {
+    min-height: 100px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 1rem;
+  }
