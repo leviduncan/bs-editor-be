@@ -5,14 +5,12 @@ const morgan = require('morgan');
 const helmet = require('helmet');
 const fs = require('fs');
 const path = require('path');
-const sass = require('sass');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 
 const app = express();
 const componentsPath = path.join(__dirname, 'components.json');
-// const scssPath = path.join(__dirname, '../src/scss');
-// const cssPath = path.join(__dirname, '../public/css');
+const customCssPath = path.join(__dirname, '../src', 'custom.css'); // Updated path for `custom.css`
 
 // Rate limiter configuration
 const limiter = rateLimit({
@@ -41,45 +39,31 @@ app.use(helmet({
     }
 }));
 
-// Endpoint: Update Styles
-app.post('/api/update-styles', async (req, res) => {
+// Endpoint: Update CSS Variables in custom.css
+app.post('/api/update-css', async (req, res) => {
     try {
-        const { primaryColor, secondaryColor } = req.body;
+        const { cssVariables } = req.body;
 
-        if (!primaryColor || !secondaryColor) {
-            return res.status(400).json({ error: 'Both primary and secondary colors are required.' });
+        if (!cssVariables || typeof cssVariables !== 'object') {
+            return res.status(400).json({ error: 'Invalid CSS variables payload.' });
         }
 
-        const variablesScss = `$primary: ${primaryColor};\n$secondary: ${secondaryColor};\n`;
-        const variablesPath = path.join(__dirname, '../themes/src/scss', '_variables.scss');
-        const customCssPath = path.join(__dirname, '../public', 'css', 'custom.css');
-        const customScssPath = path.join(__dirname, '../themes/src/scss', 'custom.scss');
+        // Convert the CSS variables object to valid CSS syntax
+        const cssContent = Object.entries(cssVariables)
+            .map(([key, value]) => `${key}: ${value};`)
+            .join('\n');
 
-        // Update _variables.scss
-        fs.writeFileSync(variablesPath, variablesScss);
+        // Write the CSS variables to custom.css
+        const cssFileContent = `:root {\n${cssContent}\n}`;
+        fs.writeFileSync(customCssPath, cssFileContent, 'utf8');
 
-        // Compile SCSS to CSS asynchronously
-        sass.render({
-            file: customScssPath,
-            outputStyle: 'compressed',
-        }, (error, result) => {
-            if (error) {
-                console.error('Sass compilation error:', error);
-                return res.status(500).json({ error: 'Error updating styles.' });
-            }
-
-            // Write compiled CSS
-            fs.writeFileSync(customCssPath, result.css);
-
-            res.status(200).json({ message: 'Styles updated successfully!' });
-        });
+        console.log('CSS updated successfully in custom.css');
+        res.status(200).json({ message: 'CSS updated successfully!' });
     } catch (error) {
-        console.error('Error updating styles:', error);
-        res.status(500).json({ error: 'Error updating styles.' });
+        console.error('Error updating CSS:', error);
+        res.status(500).json({ error: 'Error updating CSS.' });
     }
 });
-
-
 
 // CRUD for Components
 app.get('/api/components', (req, res) => {
@@ -124,7 +108,6 @@ app.get('/api/components/:id', (req, res) => {
         res.status(404).json({ error: 'Component not found.' });
     }
 });
-
 
 app.put('/api/components/:id', (req, res) => {
     try {
@@ -186,30 +169,6 @@ app.get('/api/components/:id/download', (req, res) => {
     } catch (error) {
         console.error('Error downloading component:', error);
         res.status(500).json({ error: 'Error downloading component.' });
-    }
-});
-
-app.get('/api/theme/colors', (req, res) => {
-    try {
-        const colors = {
-            primary: '#0d6efd', // Default Bootstrap primary
-            secondary: '#6c757d', // Default Bootstrap secondary
-        };
-
-        const customCssPath = path.join(__dirname, '../public', 'css', 'custom.css');
-        if (fs.existsSync(customCssPath)) {
-            const cssContent = fs.readFileSync(customCssPath, 'utf8');
-            const primaryMatch = cssContent.match(/--bs-primary:\s*(#[0-9a-fA-F]{6});/);
-            const secondaryMatch = cssContent.match(/--bs-secondary:\s*(#[0-9a-fA-F]{6});/);
-
-            if (primaryMatch) colors.primary = primaryMatch[1];
-            if (secondaryMatch) colors.secondary = secondaryMatch[1];
-        }
-
-        res.json(colors);
-    } catch (error) {
-        console.error('Error fetching theme colors:', error);
-        res.status(500).json({ error: 'Error fetching theme colors.' });
     }
 });
 
